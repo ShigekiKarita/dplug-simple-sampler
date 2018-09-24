@@ -19,10 +19,19 @@ struct WavRIFF
         char[4] dataId;
         int fileSize;
     }
-    Header header;
+    Header* header;
     alias header this;
     byte* ptr;
 
+    @disable this(this);
+    @disable new(size_t);
+
+    ~this() nothrow @nogc
+    {
+        import core.stdc.stdlib;
+        free(this.header);
+    }
+    
     auto data(T=byte)() pure nothrow @nogc
     {
         auto p = cast(T*) this.ptr;
@@ -31,7 +40,7 @@ struct WavRIFF
 
     auto bytes() pure nothrow @nogc
     {
-        auto b = cast(ubyte*) &this;
+        auto b = cast(ubyte*) this.header;
         // FIXME
         version (X86_64)
             auto l = typeof(this).sizeof + this.fileSize - 12;
@@ -41,27 +50,22 @@ struct WavRIFF
         return b[0 .. l];
     }
 
-    static load(ubyte[] bytes)
+    static load(ubyte[] bytes) nothrow @nogc
     {
         auto p = cast(Header*) bytes.ptr;
-        import core.stdc.stdio;
-        // printf("%d %d\n", p.bytes.length, bytes.length);
-        // assert(p.bytes.length == bytes.length);
-        return typeof(this)(*p, cast(byte*)  bytes.ptr + p.sizeof);
+        return typeof(this)(p, cast(byte*)  bytes.ptr + p.sizeof);
+        // import core.stdc.stdio;
+        // import std.algorithm : move;
+        // printf("%d %d\n", ret.bytes.length, bytes.length);
+        // assert(ret.bytes.length == bytes.length);
+        // return move(ret);
     }
     
-    static load(const(char)[] fileNameZ)
+    static load(const(char)[] fileNameZ) nothrow @nogc
     {
         import dplug.core.file : readFile;
         return load(readFile(fileNameZ));
     }
-
-    // ~this()
-    // {
-    //     import dplug.core.nogc : freeSlice;
-    //     auto p = cast(ubyte*) &this;
-    //     freeSlice(p[0 .. typeof(this).sizeof]);
-    // }
 }
 
 unittest
@@ -85,5 +89,6 @@ unittest
         assert(dataId == "data");
         // assert(fileSize == bytes.length - (*wav).sizeof + ptr.sizeof);
     }
-    writeln(wav.data!short[$-1]);
+    assert(wav.data!short[0] == 16727);
+    assert(wav.data!short[$-1] == 614);
 }

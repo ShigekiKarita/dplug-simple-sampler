@@ -31,12 +31,6 @@ nothrow:
     import wav;
     WavRIFF _sample;
 
-    ~this()
-    {
-        // FIXME
-        // freeSlice(this._sample.bytes);
-    }
-    
     this()
     {
         this._sample = WavRIFF.load(`C:\Users\skarita\Desktop\dplug-simple-sampler\resource\WilhelmScream.wav`);
@@ -195,6 +189,5 @@ private:
 
 unittest
 {
-    import wav;
-    auto w = WavRIFF.load(`C:\Users\skarita\Desktop\dplug-simple-sampler\resource\WilhelmScream.wav`);
+    auto c = new SimpleMonoSynth;
 }
