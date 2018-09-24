@@ -32,13 +32,31 @@ nothrow:
     WavRIFF _sample;
     VoicesStatus _voiceStatus;
     float _sampleRate;
-    size_t _sampleIndex;
+    size_t[128] _sampleIndex;
+    float[][2][128] _resampled;
 
 public:
 
     this()
     {
+        import resampling;
         this._sample = WavRIFF.load(`C:\Users\skarita\Desktop\dplug-simple-sampler\resource\WilhelmScream.wav`);
+        auto srcFreq = 440;
+        auto ds = this._sample.data!short;
+        auto srcL = makeVec!float(ds.length / 2);
+        auto srcR = makeVec!float(ds.length / 2);
+
+        foreach (i; 0 .. srcL.length)
+        {
+            srcL[i] = cast(float) ds[2 * i] / short.max;
+            srcR[i] = cast(float) ds[2 * i + 1] / short.max;
+        }
+        foreach (n; 0 .. 128)
+        {
+            auto dstFreq = convertMIDINoteToFrequency(n);
+            this._resampled[n][0] = linearInterpolate(srcL[], srcFreq, dstFreq);
+            this._resampled[n][1] = linearInterpolate(srcR[], srcFreq, dstFreq);
+        }
     }
 
     override PluginInfo buildPluginInfo()
@@ -68,7 +86,7 @@ public:
 
     override void reset(double sampleRate, int maxFrames, int numInputs, int numOutputs)
     {
-        _sampleIndex = 0;
+        _sampleIndex[] = 0;
         _sampleRate = sampleRate;
         _voiceStatus.initialize();
     }
@@ -76,26 +94,29 @@ public:
     override void processAudio(const(float*)[] inputs, float*[]outputs, int frames, TimeInfo info)
     {
         auto d = this._sample.data!short;
-        auto _d = d[$-1]; // ???
         foreach(msg; getNextMidiMessages(frames))
         {
             if (msg.isNoteOn())
+            {
                 _voiceStatus.markNoteOn(msg.noteNumber());
+                _sampleIndex[msg.noteNumber()] = 0;
+            }
             else if (msg.isNoteOff())
                 _voiceStatus.markNoteOff(msg.noteNumber());
         }
 
         if (_voiceStatus.isAVoicePlaying)
         {
-            float freq = convertMIDINoteToFrequency(_voiceStatus.lastNotePlayed);
+            auto note = _voiceStatus.lastNotePlayed;
+            auto rs = this._resampled[note];
             foreach(smp; 0..frames)
             {
                 foreach (ch; 0.. outputs.length)
                 {
-                    auto i = this._sampleIndex * 2 + ch;
-                    outputs[ch][smp] = cast(float) d[i % $] / short.max;
+                    auto i = _sampleIndex[note];
+                    outputs[ch][smp] = rs[ch][i % $];
                 }
-                ++this._sampleIndex;
+                ++_sampleIndex[note];
             }
         }
         else
@@ -187,4 +208,6 @@ private:
 unittest
 {
     auto c = new SimpleSampler;
+    int[2][3] i;
+    assert(i[2][1] == 0);
 }
