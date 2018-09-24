@@ -1,9 +1,9 @@
 module simplesampler;
 
 /**
-Simplest synthesizer example.
+Simplest sampler example.
 
-Copyright: Guillaume Piolat 2018.
+Copyright: Shigeki Karita, Guillaume Piolat 2018.
 License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 import std.complex;
@@ -19,17 +19,22 @@ else
     // This create the DLL entry point
     mixin(DLLEntryPoint!());
     // This create the VST entry point
-    mixin(VSTEntryPoint!SimpleMonoSynth);
+    mixin(VSTEntryPoint!SimpleSampler);
 }
     
 /// Simplest VST synth you could make.
-final class SimpleMonoSynth : dplug.client.Client
+final class SimpleSampler : dplug.client.Client
 {
-public:
+private:
 nothrow:
 @nogc:
     import wav;
     WavRIFF _sample;
+    VoicesStatus _voiceStatus;
+    float _sampleRate;
+    size_t _sampleIndex;
+
+public:
 
     this()
     {
@@ -64,7 +69,6 @@ nothrow:
     override void reset(double sampleRate, int maxFrames, int numInputs, int numOutputs)
     {
         _sampleIndex = 0;
-        _phase = complex(1, 0);
         _sampleRate = sampleRate;
         _voiceStatus.initialize();
     }
@@ -93,19 +97,12 @@ nothrow:
                 }
                 ++this._sampleIndex;
             }
-            _phase /= abs!float(_phase); // resync oscillator
         }
         else
         {
             outputs[0][0..frames] = 0;
         }
     }
-
-private:
-    VoicesStatus _voiceStatus;
-    Complex!float _phase;
-    float _sampleRate;
-    size_t _sampleIndex;
 }
 
 // Maintain list of active voices/notes
@@ -189,5 +186,5 @@ private:
 
 unittest
 {
-    auto c = new SimpleMonoSynth;
+    auto c = new SimpleSampler;
 }

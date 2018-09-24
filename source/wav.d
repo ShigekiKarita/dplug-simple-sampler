@@ -1,5 +1,8 @@
 module wav;
 
+@nogc:
+nothrow:
+
 /// http://soundfile.sapp.org/doc/WaveFormat/
 struct WavRIFF
 {
@@ -38,27 +41,10 @@ struct WavRIFF
         return p[0 .. this.fileSize / (T.sizeof / byte.sizeof)];
     }
 
-    auto bytes() pure nothrow @nogc
-    {
-        auto b = cast(ubyte*) this.header;
-        // FIXME
-        version (X86_64)
-            auto l = typeof(this).sizeof + this.fileSize - 12;
-        else
-            auto l = typeof(this).sizeof + this.fileSize - 4;
-        
-        return b[0 .. l];
-    }
-
-    static load(ubyte[] bytes) nothrow @nogc
+    static load(ubyte[] bytes) pure nothrow @nogc
     {
         auto p = cast(Header*) bytes.ptr;
         return typeof(this)(p, cast(byte*)  bytes.ptr + p.sizeof);
-        // import core.stdc.stdio;
-        // import std.algorithm : move;
-        // printf("%d %d\n", ret.bytes.length, bytes.length);
-        // assert(ret.bytes.length == bytes.length);
-        // return move(ret);
     }
     
     static load(const(char)[] fileNameZ) nothrow @nogc
@@ -70,14 +56,11 @@ struct WavRIFF
 
 unittest
 {
-    import std.stdio;
-    import dplug.core.file;
     auto wav = WavRIFF.load("resource/WilhelmScream.wav");
     with (wav)
     {
         assert(riffId == "RIFF");
         assert(waveId == "WAVE");
-        // assert(wav.bytes.length == riffId.length + chunkSize.sizeof + chunkSize);
         assert(fmtId == "fmt ");
         assert(fmtSize == 16); // default
         assert(fmtCode == 1); // default
@@ -87,8 +70,7 @@ unittest
         assert(blockBoundary == 4);
         assert(bitPerSample == 16);
         assert(dataId == "data");
-        // assert(fileSize == bytes.length - (*wav).sizeof + ptr.sizeof);
+        assert(data!short[0] == 16727);
+        assert(data!short[$-1] == 614);
     }
-    assert(wav.data!short[0] == 16727);
-    assert(wav.data!short[$-1] == 614);
 }
