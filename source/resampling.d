@@ -2,6 +2,7 @@ module resampling;
 
 import dplug.core.vec;
 
+nothrow @nogc:
 
 F[] linearInterpolate(F)(const F[] src, double srcFreq, double dstFreq)
 {
@@ -28,14 +29,12 @@ F[] linearInterpolate(F)(const F[] src, double srcFreq, double dstFreq)
         }
     }
     return dst.releaseData();
-
 }
 
-unittest
+@system unittest
 {
-    import std.stdio;
-    auto src = [1.0, 2.0, 3.0];
+    static immutable src = [1.0, 2.0, 3.0];
     auto dst = linearInterpolate(src, 2.0, 1.0);
-    writeln(dst);
-    assert(dst == [1.0, 1.5, 2.0, 2.5, 3.0, 3.0]);
+    static immutable expect = [1.0, 1.5, 2.0, 2.5, 3.0, 3.0];
+    assert(dst == expect);
 }

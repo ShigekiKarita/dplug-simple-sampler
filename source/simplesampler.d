@@ -6,9 +6,9 @@ Simplest sampler example.
 Copyright: Shigeki Karita, Guillaume Piolat 2018.
 License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
-import std.complex;
-import std.math;
-import dplug.core, dplug.client;
+
+
+import dplug.client : Parameter, Client;
 
 version (unittest)
 {
@@ -23,12 +23,17 @@ else
 }
     
 /// Simplest VST synth you could make.
-final class SimpleSampler : dplug.client.Client
+final class SimpleSampler : Client
 {
 private:
 nothrow:
 @nogc:
+
+    import dplug.core : mallocNew, makeVec, convertMIDINoteToFrequency;
+    import dplug.client : IGraphics, PluginInfo, TimeInfo, LegalIO, parsePluginInfo;
+
     import wav;
+    import midi : VoicesStatus;
     WavRIFF _sample;
     VoicesStatus _voiceStatus;
     float _sampleRate;
@@ -39,8 +44,9 @@ public:
 
     this()
     {
-        import resampling;
-        this._sample = WavRIFF.load(`C:\Users\skarita\Desktop\dplug-simple-sampler\resource\WilhelmScream.wav`);
+        import resampling : linearInterpolate;
+        this._sample = WavRIFF("resource/WilhelmScream.wav");
+        // this._sample = WavRIFF(import("WilhelmScream.wav"))); // FIXME
         auto srcFreq = 440;
         auto ds = this._sample.data!short;
         auto srcL = makeVec!float(ds.length / 2);
@@ -126,88 +132,7 @@ public:
     }
 }
 
-// Maintain list of active voices/notes
-struct VoicesStatus
-{
-nothrow:
-@nogc:
-
-    // Reset state
-    void initialize()
-    {
-        _played[] = 0;
-        _currentNumberOfNotePlayed = 0;
-        _timestamp = 0;
-    }
-
-    bool isAVoicePlaying()
-    {
-        return _currentNumberOfNotePlayed > 0;
-    }
-
-    int lastNotePlayed()
-    {
-        return _lastNotePlayed;
-    }
-
-    // useful to maintain list of msot recently played note
-    void timeHasElapsed(int frames)
-    {
-        _timestamp += frames;
-    }
-
-    void markNoteOn(int note)
-    {
-        _lastNotePlayed = note;
-
-        _played[note]++;
-        _currentNumberOfNotePlayed++;
-
-        _timestamps[note] = _timestamp;
-    }
-
-    void markNoteOff(int note)
-    {
-        if (_played[note] > 0)
-        {
-            _played[note]--;
-            _currentNumberOfNotePlayed--;
-            if (_currentNumberOfNotePlayed > 0)
-                lookForMostRecentlyPlayedActiveNote();
-        }
-    }
-
-private:
-
-    int _currentNumberOfNotePlayed;
-
-    int _lastNotePlayed;
-    int _timestamp;
-
-    int[128] _played;
-    int[128] _timestamps;
-
-
-    // looking for most recently played note still in activity
-    void lookForMostRecentlyPlayedActiveNote()
-    {
-        assert(_currentNumberOfNotePlayed > 0);
-        int mostRecent = int.min; // will wrap in 26H, that would be a long note
-        for (int n = 0; n < 128; n++)
-        {
-            if (_played[n] && _timestamps[n] > mostRecent)
-            {
-                mostRecent = _timestamps[n];
-                _lastNotePlayed = n;
-            }
-        }
-    }
-}
-
-
 unittest
 {
     auto c = new SimpleSampler;
-    int[2][3] i;
-    assert(i[2][1] == 0);
 }
