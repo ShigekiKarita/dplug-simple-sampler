@@ -29,7 +29,7 @@ private:
 nothrow:
 @nogc:
 
-    import dplug.core : mallocNew, makeVec, convertMIDINoteToFrequency;
+    import dplug.core : mallocNew, makeVec, convertMIDINoteToFrequency, Vec;
     import dplug.client : IGraphics, PluginInfo, TimeInfo, LegalIO, parsePluginInfo;
 
     import wav;
@@ -39,30 +39,52 @@ nothrow:
     float _sampleRate;
     size_t[128] _sampleIndex;
     float[][2][128] _resampled;
+    Vec!float[2] src;
+    float srcFreq = 440;
+    
+    import gui : SimpleGUI;
+    SimpleGUI gui;
 
 public:
-
+    override IGraphics createGraphics() @nogc nothrow
+    {
+        this.gui = mallocNew!(SimpleGUI)();
+        return this.gui;
+    }
+            
     this()
     {
-        import resampling : linearInterpolate;
         this._sample = WavRIFF("resource/WilhelmScream.wav");
         // this._sample = WavRIFF(import("WilhelmScream.wav"))); // FIXME
-        auto srcFreq = 440;
         auto ds = this._sample.data!short;
-        auto srcL = makeVec!float(ds.length / 2);
-        auto srcR = makeVec!float(ds.length / 2);
+        src[0] = makeVec!float(ds.length / 2);
+        src[1] = makeVec!float(ds.length / 2);
 
-        foreach (i; 0 .. srcL.length)
+        foreach (c, ref s; src)
         {
-            srcL[i] = cast(float) ds[2 * i] / short.max;
-            srcR[i] = cast(float) ds[2 * i + 1] / short.max;
+            foreach (i; 0 .. s.length)
+            {
+                s[i] = cast(float) ds[2 * i + c] / short.max;
+            }
         }
-        foreach (n; 0 .. 128)
+        // foreach (n; 0 .. 128)
+        // {
+        //     auto dstFreq = convertMIDINoteToFrequency(n);
+        //     this._resampled[n][0] = linearInterpolate(src[0][], srcFreq, dstFreq);
+        //     this._resampled[n][1] = linearInterpolate(src[1][], srcFreq, dstFreq);
+        // }
+    }
+
+    auto resampled(int n)
+    {
+        import resampling : linearInterpolate;
+        if (this._resampled[n][0].length == 0)
         {
             auto dstFreq = convertMIDINoteToFrequency(n);
-            this._resampled[n][0] = linearInterpolate(srcL[], srcFreq, dstFreq);
-            this._resampled[n][1] = linearInterpolate(srcR[], srcFreq, dstFreq);
+            this._resampled[n][0] = linearInterpolate(src[0][], srcFreq, dstFreq);
+            this._resampled[n][1] = linearInterpolate(src[1][], srcFreq, dstFreq);
         }
+        return this._resampled[n][];
     }
 
     override PluginInfo buildPluginInfo()
@@ -108,8 +130,8 @@ public:
 
         if (_voiceStatus.isAVoicePlaying)
         {
-            auto note = _voiceStatus.lastNotePlayed;
-            auto rs = this._resampled[note];
+            immutable note = _voiceStatus.lastNotePlayed;
+            const rs = this.resampled(note);
             foreach(smp; 0..frames)
             {
                 immutable i = _sampleIndex[note];

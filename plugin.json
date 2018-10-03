@@ -7,7 +7,7 @@
     "pluginUniqueID": "NAsz",
     "publicVersion": "0.0.1",
     "CFBundleIdentifierPrefix": "com.nonameaudio",
-    "hasGUI": false,
+    "hasGUI": true,
     "isSynth": true,
     "receivesMIDI": true,
     "category": "instrumentSampler"
