@@ -8,7 +8,7 @@ License:   $(LINK2 http://www.boost.org/LICENSE_1_0.txt, Boost License 1.0)
 */
 
 
-import dplug.client : Parameter, Client;
+import dplug.client : Parameter, Client, DLLEntryPoint;
 
 version (unittest)
 {
@@ -85,11 +85,6 @@ public:
         return io.releaseData();
     }
 
-    override int maxFramesInProcess() pure const
-    {
-        return 32; // samples only processed by a maximum of 32 samples
-    }
-
     override void reset(double sampleRate, int maxFrames, int numInputs, int numOutputs)
     {
         _sampleIndex[] = 0;
@@ -117,9 +112,9 @@ public:
             auto rs = this._resampled[note];
             foreach(smp; 0..frames)
             {
+                immutable i = _sampleIndex[note];
                 foreach (ch; 0.. outputs.length)
                 {
-                    auto i = _sampleIndex[note];
                     outputs[ch][smp] = rs[ch][i % $];
                 }
                 ++_sampleIndex[note];
@@ -127,7 +122,8 @@ public:
         }
         else
         {
-            outputs[0][0..frames] = 0;
+            foreach (o; outputs)
+                o[0..frames] = 0;
         }
     }
 }
